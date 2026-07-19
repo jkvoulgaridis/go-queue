@@ -1,0 +1,5 @@
+package nodes
+
+func WorkerSpinUp() {
+
+}

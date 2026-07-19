@@ -1,0 +1,22 @@
+version: '3.8'
+
+x-mockchain-common: &common-img
+  build:
+    context: .
+    dockerfile: Dockerfile
+  restart: unless-stopped
+
+services:
+  master:
+    <<: *common-img
+    container_name: master
+    environment:
+      - NODE_TYPE=master
+
+  worker:
+    <<: *common-img
+    container_name: worker
+    depends_on:
+      - bootstrap
+    environment:
+      - NODE_NAME=worker
