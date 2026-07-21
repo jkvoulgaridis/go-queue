@@ -46,43 +46,9 @@ func HandlePullTask(incomingMessage string, q *execution.TaskQueue) string {
 		envelopedData = append(envelopedData, TaskEnvelope{
 			Type: "assign",
 			Eid:  eid.String(),
-			Task: TaskExecution{
-				Payload:  t.Input,
-				TaskName: t.Task,
-			},
+			Task: TaskExecution{Payload: t.Input, TaskName: t.Task},
 		})
 	}
 
 	return ToCanonicalJson(MultiTaskEnvelope{Type: "assign", Tasks: envelopedData})
-}
-
-func runTask(task TaskEnvelope, r *execution.TaskRegistry) {
-	taskID := task.Eid
-	taskHandler := task.Task.TaskName
-	taskPayload := task.Task.Payload
-
-	handler, err := r.GetHandler(taskHandler)
-	if err != nil {
-		log.Printf("Send NACK for taskId: %s reason: %v", taskID, err)
-		return
-	}
-
-	runError := handler.Run(taskPayload)
-	if runError != nil {
-		log.Printf("Send NACK for taskId: %s reason: %v", taskID, runError)
-		return
-	}
-
-	log.Printf("Send ACK for taskId: %s", taskID)
-}
-
-func HandleAssignTask(incomingMessage string, r *execution.TaskRegistry) {
-	tasks, err := FromCanonicalJson[MultiTaskEnvelope](incomingMessage)
-	if err != nil {
-		log.Printf("invalid assign message: %v", err)
-		return
-	}
-	for _, task := range tasks.Tasks {
-		go runTask(task, r)
-	}
 }

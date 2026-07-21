@@ -12,7 +12,7 @@ type ProblematicHandler struct{}
 
 func (h SubmitReportHandler) Run(reportPayload string) error {
 	log.Printf("Submitting report: %s", reportPayload)
-	time.Sleep(1 * time.Second)
+	time.Sleep(200 * time.Millisecond)
 	log.Printf("Submitted report: %s", reportPayload)
 	return nil
 }

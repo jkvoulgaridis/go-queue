@@ -1,6 +1,6 @@
 version: '3.8'
 
-x-mockchain-common: &common-img
+x-gqueue-common: &common-img
   build:
     context: .
     dockerfile: Dockerfile
@@ -12,11 +12,34 @@ services:
     container_name: master
     environment:
       - NODE_TYPE=master
+      - BROKER_ADDR=:18018
+    ports:
+      - "18018:18018"
 
   worker:
     <<: *common-img
     container_name: worker
     depends_on:
-      - bootstrap
+      - master
     environment:
-      - NODE_NAME=worker
+      - NODE_TYPE=worker
+      - BROKER_ADDR=master:18018
+      - WORKER_CONCURRENCY=100
+      - WORKER_POLL_MS=1000
+    command:
+      - ./gqueue
+      - -mode=worker
+
+  worker2:
+    <<: *common-img
+    container_name: worker2
+    depends_on:
+      - master
+    environment:
+      - NODE_TYPE=worker
+      - BROKER_ADDR=master:18018
+      - WORKER_CONCURRENCY=100
+      - WORKER_POLL_MS=1000
+    command:
+      - ./gqueue
+      - -mode=worker
