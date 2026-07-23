@@ -34,7 +34,8 @@ func SpinupTCPChannel() {
 }
 
 func getMetrics(w http.ResponseWriter, req *http.Request) {
-	fmt.Fprintf(w, "OK\n")
+	rsp := network.GetMetrics()
+	fmt.Fprintf(w, "%s\n", rsp)
 }
 
 func SpinUpHTTPMetrics() {
@@ -46,5 +47,5 @@ func SpinUpHTTPMetrics() {
 func MasterSpinup() {
 	go SpinUpHTTPMetrics()
 	go SpinupTCPChannel()
-	select{}
+	select {}
 }

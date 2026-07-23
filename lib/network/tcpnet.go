@@ -80,7 +80,7 @@ func HandleConnection(conn net.Conn) {
 				log.Printf("Invalid ack message: %v", err)
 				continue
 			}
-			log.Printf("Got ACK for task id: %s", ackMsg.Eid)
+			HandleAckMessage(ackMsg, taskQueue)
 		case "nack":
 			nackMsg, err := FromCanonicalJson[NackMessage](msg)
 			if err != nil {
@@ -92,4 +92,8 @@ func HandleConnection(conn net.Conn) {
 			log.Printf("Unknown message type: %s", msgStruct.Type)
 		}
 	}
+}
+
+func GetMetrics() string {
+	return ToCanonicalJson(taskQueue.GetMetrics())
 }

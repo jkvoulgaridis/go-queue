@@ -48,7 +48,13 @@ func HandlePullTask(incomingMessage string, q *execution.TaskQueue) string {
 			Eid:  eid.String(),
 			Task: TaskExecution{Payload: t.Input, TaskName: t.Task},
 		})
+		q.AddToInFlight(eid)
 	}
 
 	return ToCanonicalJson(MultiTaskEnvelope{Type: "assign", Tasks: envelopedData})
+}
+
+func HandleAckMessage(incomingMessage AckMessage, q *execution.TaskQueue) {
+	taskId, _ := uuid.Parse(incomingMessage.Eid)
+	q.RemoveFromInFlight(taskId)
 }
