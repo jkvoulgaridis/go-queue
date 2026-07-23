@@ -15,6 +15,7 @@ services:
       - BROKER_ADDR=:18018
     ports:
       - "18018:18018"
+      - "8090:8090"
     command: 
       - /app/bin/broker
 

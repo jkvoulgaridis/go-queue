@@ -44,6 +44,7 @@ func SpinUpHTTPMetrics() {
 }
 
 func MasterSpinup() {
-	SpinupTCPChannel()
 	go SpinUpHTTPMetrics()
+	go SpinupTCPChannel()
+	select{}
 }
