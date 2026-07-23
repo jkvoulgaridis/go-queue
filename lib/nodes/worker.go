@@ -2,7 +2,7 @@ package nodes
 
 import (
 	"bufio"
-	"gqueue/v2/internal/network"
+	"gqueue/v2/lib/network"
 	"io"
 	"log"
 	"net"
@@ -41,6 +41,20 @@ func WorkerSpinUp() {
 	}
 }
 
+func handleTask(task network.TaskEnvelope, brokerAddr string) {
+	log.Println("Started running task")
+	handler, err := network.GetTaskHandler(task.Task.TaskName)
+	if err != nil {
+		sendNack(brokerAddr, task.Eid, err.Error())
+		return
+	}
+	if err := handler.Run(task.Task.Payload); err != nil {
+		sendNack(brokerAddr, task.Eid, err.Error())
+		return
+	}
+	sendAck(brokerAddr, task.Eid)
+}
+
 func workerCycle(brokerAddr string, concurrency int) error {
 	conn, err := net.Dial("tcp", brokerAddr)
 	if err != nil {
@@ -68,16 +82,7 @@ func workerCycle(brokerAddr string, concurrency int) error {
 	}
 
 	for _, task := range env.Tasks {
-		handler, err := network.GetTaskHandler(task.Task.TaskName)
-		if err != nil {
-			sendNack(brokerAddr, task.Eid, err.Error())
-			continue
-		}
-		if err := handler.Run(task.Task.Payload); err != nil {
-			sendNack(brokerAddr, task.Eid, err.Error())
-			continue
-		}
-		sendAck(brokerAddr, task.Eid)
+		go handleTask(task, brokerAddr)
 	}
 
 	return nil

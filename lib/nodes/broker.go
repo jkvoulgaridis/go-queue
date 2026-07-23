@@ -1,13 +1,15 @@
 package nodes
 
 import (
-	"gqueue/v2/internal/network"
+	"fmt"
+	"gqueue/v2/lib/network"
 	"log"
 	"net"
+	"net/http"
 	"os"
 )
 
-func MasterSpinup() {
+func SpinupTCPChannel() {
 	addr := os.Getenv("BROKER_ADDR")
 	if addr == "" {
 		addr = ":18018"
@@ -29,4 +31,19 @@ func MasterSpinup() {
 		}
 		go network.HandleConnection(conn)
 	}
+}
+
+func getMetrics(w http.ResponseWriter, req *http.Request) {
+	fmt.Fprintf(w, "OK\n")
+}
+
+func SpinUpHTTPMetrics() {
+	http.HandleFunc("/metrics", getMetrics)
+	http.ListenAndServe(":8090", nil)
+
+}
+
+func MasterSpinup() {
+	SpinupTCPChannel()
+	go SpinUpHTTPMetrics()
 }

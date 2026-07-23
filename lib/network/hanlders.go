@@ -1,7 +1,7 @@
 package network
 
 import (
-	"gqueue/v2/internal/execution"
+	"gqueue/v2/lib/execution"
 	"log"
 	"slices"
 

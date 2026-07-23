@@ -15,10 +15,11 @@ services:
       - BROKER_ADDR=:18018
     ports:
       - "18018:18018"
+    command: 
+      - /app/bin/broker
 
   worker:
     <<: *common-img
-    container_name: worker
     depends_on:
       - master
     environment:
@@ -27,19 +28,6 @@ services:
       - WORKER_CONCURRENCY=100
       - WORKER_POLL_MS=1000
     command:
-      - ./gqueue
-      - -mode=worker
-
-  worker2:
-    <<: *common-img
-    container_name: worker2
-    depends_on:
-      - master
-    environment:
-      - NODE_TYPE=worker
-      - BROKER_ADDR=master:18018
-      - WORKER_CONCURRENCY=100
-      - WORKER_POLL_MS=1000
-    command:
-      - ./gqueue
-      - -mode=worker
+      - /app/bin/worker
+    deploy:
+      replicas: 3

@@ -6,7 +6,7 @@ RUN go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux go build
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /app/bin/ ./examples/cmd/...
 
 FROM alpine:3.20 AS runner
 
@@ -18,5 +18,3 @@ COPY --from=builder /app .
 USER appuser
 
 EXPOSE 18018
-
-ENTRYPOINT ["./gqueue"]

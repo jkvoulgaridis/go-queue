@@ -2,7 +2,7 @@ package network
 
 import (
 	"bufio"
-	"gqueue/v2/internal/execution"
+	"gqueue/v2/lib/execution"
 	"io"
 	"log"
 	"net"
@@ -13,7 +13,6 @@ var (
 	taskRegistry = execution.NewRegistry()
 	taskQueue    = execution.NewTaskQueue()
 )
-
 
 func RegisterTask(name string, handler execution.Task) error {
 	return taskRegistry.Register(name, handler)
