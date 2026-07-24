@@ -16,6 +16,9 @@ type TaskQueueItem struct {
 }
 
 type TaskQueue struct {
+	q_lock      sync.Mutex
+	i_lock      sync.Mutex
+	f_lock      sync.Mutex
 	queued      []messages.TaskEnvelope
 	inFlight    []uuid.UUID
 	failedTasks []uuid.UUID
@@ -64,8 +67,9 @@ func (r *TaskQueue) Submit(name string, payload string) error {
 		Input: payload,
 	}
 	enveloped := r.addTaskEnvelope(task)
-
+	r.q_lock.Lock()
 	r.queued = append(r.queued, enveloped)
+	r.q_lock.Unlock()
 	return nil
 }
 
@@ -73,9 +77,12 @@ func (r *TaskQueue) Execute() messages.TaskEnvelope {
 	if len(r.queued) == 0 {
 		return messages.TaskEnvelope{}
 	}
+	r.q_lock.Lock()
 	item := r.queued[0]
 	r.queued[0] = messages.TaskEnvelope{}
 	r.queued = r.queued[1:]
+	r.q_lock.Unlock()
+
 	return item
 }
 
@@ -92,7 +99,9 @@ func (r *TaskQueue) List(n int) []messages.TaskEnvelope {
 }
 
 func (r *TaskQueue) AddToInFlight(i uuid.UUID) {
+	r.i_lock.Lock()
 	r.inFlight = append(r.inFlight, i)
+	r.i_lock.Unlock()
 }
 
 func (r *TaskQueue) GetMetrics() map[string]int {
@@ -105,12 +114,17 @@ func (r *TaskQueue) GetMetrics() map[string]int {
 }
 
 func (r *TaskQueue) RemoveFromInFlight(eid uuid.UUID, isFailed bool) {
+
 	idx := slices.Index(r.inFlight, eid)
 	if idx != -1 {
+		r.i_lock.Lock()
 		r.inFlight = slices.Delete(r.inFlight, idx, idx+1)
+		r.i_lock.Unlock()
 		log.Printf("Removed item: %s\n", eid)
 	}
 	if isFailed {
+		r.f_lock.Lock()
 		r.failedTasks = append(r.failedTasks, eid)
+		r.f_lock.Unlock()
 	}
 }
