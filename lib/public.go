@@ -5,6 +5,7 @@ import (
 	"gqueue/v2/lib/network"
 	"gqueue/v2/lib/nodes"
 	"net"
+	"gqueue/v2/lib/messages"
 )
 
 type TaskDef struct {
@@ -28,9 +29,9 @@ func SubmitTask(brokerAddr string, taskName string, payload string) error {
 	}
 	defer conn.Close()
 
-	msg := network.TaskSubmission{
+	msg := messages.TaskSubmission{
 		Type: "submit",
-		TaskToExec: network.TaskExecution{
+		TaskToExec: messages.TaskExecution{
 			TaskName: taskName,
 			Payload:  payload,
 		},

@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"strings"
+	"gqueue/v2/lib/messages"
 )
 
 var (
@@ -41,8 +42,9 @@ func HandleConnection(conn net.Conn) {
 		if msg == "" {
 			continue
 		}
+		log.Printf("broker recv raw=%q", msg)
 
-		msgStruct, err := FromCanonicalJson[Message](msg)
+		msgStruct, err := FromCanonicalJson[messages.Message](msg)
 		if err != nil {
 			log.Printf("Error parsing message envelope: %v", err)
 			continue
@@ -51,7 +53,7 @@ func HandleConnection(conn net.Conn) {
 		switch msgStruct.Type {
 		case "submit":
 			HandleSubmitTask(msg, taskQueue, taskRegistry)
-			if _, err := writer.WriteString(ToCanonicalJson(Message{Type: "ok"})); err != nil {
+			if _, err := writer.WriteString(ToCanonicalJson(messages.Message{Type: "ok"})); err != nil {
 				log.Printf("Error writing submit response: %v", err)
 				return
 			}
@@ -62,7 +64,8 @@ func HandleConnection(conn net.Conn) {
 		case "pull":
 			assignPayload := HandlePullTask(msg, taskQueue)
 			if assignPayload == "" {
-				assignPayload = ToCanonicalJson(MultiTaskEnvelope{Type: "assign", Tasks: []TaskEnvelope{}})
+				log.Printf("broker pull empty_assign_payload; returning empty task list")
+				assignPayload = ToCanonicalJson(messages.MultiTaskEnvelope{Type: "assign", Tasks: []messages.TaskEnvelope{}})
 			}
 			if _, err := writer.WriteString(assignPayload); err != nil {
 				log.Printf("Error writing pull response: %v", err)
@@ -75,14 +78,14 @@ func HandleConnection(conn net.Conn) {
 		case "assign":
 			log.Printf("broker received unexpected assign message")
 		case "ack":
-			ackMsg, err := FromCanonicalJson[AckMessage](msg)
+			ackMsg, err := FromCanonicalJson[messages.AckMessage](msg)
 			if err != nil {
 				log.Printf("Invalid ack message: %v", err)
 				continue
 			}
 			HandleAckMessage(ackMsg, taskQueue)
 		case "nack":
-			nackMsg, err := FromCanonicalJson[NackMessage](msg)
+			nackMsg, err := FromCanonicalJson[messages.NackMessage](msg)
 			if err != nil {
 				log.Printf("Invalid nack message: %v", err)
 				continue
