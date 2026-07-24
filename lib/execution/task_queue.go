@@ -5,6 +5,7 @@ import (
 	"gqueue/v2/lib/messages"
 	"log"
 	"slices"
+	"sync"
 
 	"github.com/google/uuid"
 )
@@ -15,15 +16,28 @@ type TaskQueueItem struct {
 }
 
 type TaskQueue struct {
-	queued   []messages.TaskEnvelope
-	inFlight []uuid.UUID
+	queued      []messages.TaskEnvelope
+	inFlight    []uuid.UUID
+	failedTasks []uuid.UUID
 }
 
-func NewTaskQueue() *TaskQueue {
+func newTaskQueue() *TaskQueue {
 	return &TaskQueue{
 		queued:   make([]messages.TaskEnvelope, 0),
 		inFlight: make([]uuid.UUID, 0),
 	}
+}
+
+var (
+	taskQ *TaskQueue
+	onceT sync.Once
+)
+
+func GetTaskQueue() *TaskQueue {
+	onceT.Do(func() {
+		taskQ = newTaskQueue()
+	})
+	return taskQ
 }
 
 func (r *TaskQueue) addTaskEnvelope(task TaskQueueItem) messages.TaskEnvelope {
@@ -85,14 +99,18 @@ func (r *TaskQueue) GetMetrics() map[string]int {
 	met := map[string]int{
 		"queued":    len(r.queued),
 		"in_flight": len(r.inFlight),
+		"failed":    len(r.failedTasks),
 	}
 	return met
 }
 
-func (r *TaskQueue) RemoveFromInFlight(eid uuid.UUID) {
+func (r *TaskQueue) RemoveFromInFlight(eid uuid.UUID, isFailed bool) {
 	idx := slices.Index(r.inFlight, eid)
 	if idx != -1 {
 		r.inFlight = slices.Delete(r.inFlight, idx, idx+1)
 		log.Printf("Removed item: %s\n", eid)
+	}
+	if isFailed {
+		r.failedTasks = append(r.failedTasks, eid)
 	}
 }
