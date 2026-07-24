@@ -5,6 +5,7 @@ import (
 	"gqueue/v2/lib/singletons"
 	"log"
 	"slices"
+	"strings"
 
 	"github.com/google/uuid"
 )
@@ -84,4 +85,57 @@ func HandleNackkMessage(incomingMessage messages.NackMessage) {
 	q.RemoveFromInFlight(taskId, true)
 	metrics := q.GetMetrics()
 	log.Printf("broker ack task_id=%s queued=%d in_flight=%d", incomingMessage.Eid, metrics["queued"], metrics["in_flight"])
+}
+
+func GetMetrics() string {
+	taskQueue := singletons.TaskQueue
+	return ToCanonicalJson(taskQueue.GetMetrics())
+}
+
+func HanldeIncomingMessage(msg string) string {
+	msg = strings.TrimSpace(msg)
+	if msg == "" {
+		return ""
+	}
+	log.Printf("broker recv raw=%q", msg)
+
+	msgStruct, err := FromCanonicalJson[messages.Message](msg)
+	if err != nil {
+		log.Printf("Error parsing message envelope: %v", err)
+		return ""
+	}
+
+	switch msgStruct.Type {
+	case "submit":
+		HandleSubmitTask(msg)
+		return ToCanonicalJson(messages.Message{Type: "Ok"})
+	case "pull":
+		assignPayload := HandlePullTask(msg)
+		if assignPayload == "" {
+			log.Printf("broker pull empty_assign_payload; returning empty task list")
+			assignPayload = ToCanonicalJson(messages.MultiTaskEnvelope{Type: "assign", Tasks: []messages.TaskEnvelope{}})
+		}
+		return assignPayload
+	case "assign":
+		log.Printf("broker received unexpected assign message")
+	case "ack":
+		ackMsg, err := FromCanonicalJson[messages.AckMessage](msg)
+		if err != nil {
+			log.Printf("Invalid ack message: %v", err)
+			return ""
+		}
+		HandleAckMessage(ackMsg)
+	case "nack":
+		nackMsg, err := FromCanonicalJson[messages.NackMessage](msg)
+		if err != nil {
+			log.Printf("Invalid nack message: %v", err)
+			return ""
+		}
+		HandleNackkMessage(nackMsg)
+		log.Printf("Got NACK for task id: %s reason: %s", nackMsg.Eid, nackMsg.Reason)
+	default:
+		log.Printf("Unknown message type: %s", msgStruct.Type)
+	}
+
+	return ""
 }
