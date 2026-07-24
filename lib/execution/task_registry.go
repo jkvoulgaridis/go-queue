@@ -3,6 +3,7 @@ package execution
 import (
 	"errors"
 	"fmt"
+	"sync"
 )
 
 type Task interface {
@@ -13,10 +14,22 @@ type TaskRegistry struct {
 	taskMap map[string]Task
 }
 
-func NewRegistry() *TaskRegistry {
+func newRegistry() *TaskRegistry {
 	return &TaskRegistry{
 		taskMap: make(map[string]Task),
 	}
+}
+
+var (
+	registry *TaskRegistry
+	onceR    sync.Once
+)
+
+func GetRegistry() *TaskRegistry {
+	onceR.Do(func() {
+		registry = newRegistry()
+	})
+	return registry
 }
 
 func (r *TaskRegistry) Register(name string, handler Task) error {

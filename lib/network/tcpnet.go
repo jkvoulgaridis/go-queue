@@ -3,24 +3,20 @@ package network
 import (
 	"bufio"
 	"gqueue/v2/lib/execution"
+	"gqueue/v2/lib/messages"
+	"gqueue/v2/lib/singletons"
 	"io"
 	"log"
 	"net"
 	"strings"
-	"gqueue/v2/lib/messages"
-)
-
-var (
-	taskRegistry = execution.NewRegistry()
-	taskQueue    = execution.NewTaskQueue()
 )
 
 func RegisterTask(name string, handler execution.Task) error {
-	return taskRegistry.Register(name, handler)
+	return singletons.TaskRegistry.Register(name, handler)
 }
 
 func GetTaskHandler(name string) (execution.Task, error) {
-	return taskRegistry.GetHandler(name)
+	return singletons.TaskRegistry.GetHandler(name)
 }
 
 func HandleConnection(conn net.Conn) {
@@ -52,7 +48,7 @@ func HandleConnection(conn net.Conn) {
 
 		switch msgStruct.Type {
 		case "submit":
-			HandleSubmitTask(msg, taskQueue, taskRegistry)
+			HandleSubmitTask(msg)
 			if _, err := writer.WriteString(ToCanonicalJson(messages.Message{Type: "ok"})); err != nil {
 				log.Printf("Error writing submit response: %v", err)
 				return
@@ -62,7 +58,7 @@ func HandleConnection(conn net.Conn) {
 				return
 			}
 		case "pull":
-			assignPayload := HandlePullTask(msg, taskQueue)
+			assignPayload := HandlePullTask(msg)
 			if assignPayload == "" {
 				log.Printf("broker pull empty_assign_payload; returning empty task list")
 				assignPayload = ToCanonicalJson(messages.MultiTaskEnvelope{Type: "assign", Tasks: []messages.TaskEnvelope{}})
@@ -83,13 +79,14 @@ func HandleConnection(conn net.Conn) {
 				log.Printf("Invalid ack message: %v", err)
 				continue
 			}
-			HandleAckMessage(ackMsg, taskQueue)
+			HandleAckMessage(ackMsg)
 		case "nack":
 			nackMsg, err := FromCanonicalJson[messages.NackMessage](msg)
 			if err != nil {
 				log.Printf("Invalid nack message: %v", err)
 				continue
 			}
+			HandleNackkMessage(nackMsg)
 			log.Printf("Got NACK for task id: %s reason: %s", nackMsg.Eid, nackMsg.Reason)
 		default:
 			log.Printf("Unknown message type: %s", msgStruct.Type)
@@ -98,5 +95,6 @@ func HandleConnection(conn net.Conn) {
 }
 
 func GetMetrics() string {
+	taskQueue := singletons.TaskQueue
 	return ToCanonicalJson(taskQueue.GetMetrics())
 }
