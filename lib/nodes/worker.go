@@ -3,6 +3,7 @@ package nodes
 import (
 	"bufio"
 	"gqueue/v2/lib/network"
+	"gqueue/v2/lib/messages"
 	"io"
 	"log"
 	"net"
@@ -41,17 +42,20 @@ func WorkerSpinUp() {
 	}
 }
 
-func handleTask(task network.TaskEnvelope, brokerAddr string) {
-	log.Println("Started running task")
+func handleTask(task messages.TaskEnvelope, brokerAddr string) {
+	log.Printf("worker task start id=%s name=%s payload=%q", task.Eid, task.Task.TaskName, task.Task.Payload)
 	handler, err := network.GetTaskHandler(task.Task.TaskName)
 	if err != nil {
+		log.Printf("worker task handler_missing id=%s name=%s err=%v", task.Eid, task.Task.TaskName, err)
 		sendNack(brokerAddr, task.Eid, err.Error())
 		return
 	}
 	if err := handler.Run(task.Task.Payload); err != nil {
+		log.Printf("worker task failed id=%s name=%s err=%v", task.Eid, task.Task.TaskName, err)
 		sendNack(brokerAddr, task.Eid, err.Error())
 		return
 	}
+	log.Printf("worker task success id=%s name=%s", task.Eid, task.Task.TaskName)
 	sendAck(brokerAddr, task.Eid)
 }
 
@@ -62,7 +66,7 @@ func workerCycle(brokerAddr string, concurrency int) error {
 	}
 	defer conn.Close()
 
-	pull := network.PullMesasges{Type: "pull", Concurrency: concurrency}
+	pull := messages.PullMesasges{Type: "pull", Concurrency: concurrency}
 	if _, err := conn.Write([]byte(network.ToCanonicalJson(pull))); err != nil {
 		return err
 	}
@@ -76,10 +80,13 @@ func workerCycle(brokerAddr string, concurrency int) error {
 		return err
 	}
 
-	env, err := network.FromCanonicalJson[network.MultiTaskEnvelope](resp)
+	env, err := network.FromCanonicalJson[messages.MultiTaskEnvelope](resp)
 	if err != nil {
+		log.Printf("worker pull parse_error err=%v raw=%q", err, resp)
 		return err
 	}
+
+	log.Printf("worker pull received assigned=%d", len(env.Tasks))
 
 	for _, task := range env.Tasks {
 		go handleTask(task, brokerAddr)
@@ -95,7 +102,7 @@ func sendAck(brokerAddr, taskID string) {
 		return
 	}
 	defer conn.Close()
-	_, _ = conn.Write([]byte(network.ToCanonicalJson(network.AckMessage{Type: "ack", Eid: taskID})))
+	_, _ = conn.Write([]byte(network.ToCanonicalJson(messages.AckMessage{Type: "ack", Eid: taskID})))
 }
 
 func sendNack(brokerAddr, taskID, reason string) {
@@ -105,5 +112,5 @@ func sendNack(brokerAddr, taskID, reason string) {
 		return
 	}
 	defer conn.Close()
-	_, _ = conn.Write([]byte(network.ToCanonicalJson(network.NackMessage{Type: "nack", Eid: taskID, Reason: reason})))
+	_, _ = conn.Write([]byte(network.ToCanonicalJson(messages.NackMessage{Type: "nack", Eid: taskID, Reason: reason})))
 }

@@ -2,6 +2,7 @@ package execution
 
 import (
 	"errors"
+	"gqueue/v2/lib/messages"
 	"log"
 	"slices"
 
@@ -14,15 +15,29 @@ type TaskQueueItem struct {
 }
 
 type TaskQueue struct {
-	queued   []TaskQueueItem
+	queued   []messages.TaskEnvelope
 	inFlight []uuid.UUID
 }
 
 func NewTaskQueue() *TaskQueue {
 	return &TaskQueue{
-		queued:   make([]TaskQueueItem, 0),
+		queued:   make([]messages.TaskEnvelope, 0),
 		inFlight: make([]uuid.UUID, 0),
 	}
+}
+
+func (r *TaskQueue) addTaskEnvelope(task TaskQueueItem) messages.TaskEnvelope {
+	eid, err := uuid.NewV7()
+	if err != nil {
+		log.Printf("failed generating task id: %v", err)
+		panic(err)
+	}
+	enveloped := messages.TaskEnvelope{
+		Type: "assign",
+		Eid:  eid.String(),
+		Task: messages.TaskExecution{Payload: task.Input, TaskName: task.Task},
+	}
+	return enveloped
 }
 
 func (r *TaskQueue) Submit(name string, payload string) error {
@@ -30,26 +45,29 @@ func (r *TaskQueue) Submit(name string, payload string) error {
 		return errors.New("task name cannot be empty")
 	}
 
-	r.queued = append(r.queued, TaskQueueItem{
+	task := TaskQueueItem{
 		Task:  name,
 		Input: payload,
-	})
+	}
+	enveloped := r.addTaskEnvelope(task)
+
+	r.queued = append(r.queued, enveloped)
 	return nil
 }
 
-func (r *TaskQueue) Execute() TaskQueueItem {
+func (r *TaskQueue) Execute() messages.TaskEnvelope {
 	if len(r.queued) == 0 {
-		return TaskQueueItem{}
+		return messages.TaskEnvelope{}
 	}
 	item := r.queued[0]
-	r.queued[0] = TaskQueueItem{}
+	r.queued[0] = messages.TaskEnvelope{}
 	r.queued = r.queued[1:]
 	return item
 }
 
-func (r *TaskQueue) List(n int) []TaskQueueItem {
+func (r *TaskQueue) List(n int) []messages.TaskEnvelope {
 	if n <= 0 || len(r.queued) == 0 {
-		return []TaskQueueItem{}
+		return []messages.TaskEnvelope{}
 	}
 	if n > len(r.queued) {
 		n = len(r.queued)
@@ -75,6 +93,6 @@ func (r *TaskQueue) RemoveFromInFlight(eid uuid.UUID) {
 	idx := slices.Index(r.inFlight, eid)
 	if idx != -1 {
 		r.inFlight = slices.Delete(r.inFlight, idx, idx+1)
-		log.Printf("Removed item: %s\n", eid) // [submit_report cleanup]
+		log.Printf("Removed item: %s\n", eid)
 	}
 }
