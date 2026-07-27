@@ -14,4 +14,4 @@ test-cov-out:
 	go test -coverprofile=coverage.out ./...     
 
 total-coverage:
-	go tool cover -func=coverage.out | grep total: | awk '{print $3}'
+	go tool cover -func=coverage.out | awk '/^total:/ {print $$3}'

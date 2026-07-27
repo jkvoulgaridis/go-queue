@@ -31,7 +31,7 @@ jobs:
       - name: Get PR total coverage
         id: pr_cov
         run: |
-          PR_COVERAGE=$(make total-coverage | tr -d '%')
+          PR_COVERAGE=$(make total-coverage | tail -n1 | tr -d '%')
           echo "pr_coverage=$PR_COVERAGE" >> "$GITHUB_OUTPUT"
           echo "PR total coverage: ${PR_COVERAGE}%"
 
@@ -45,7 +45,7 @@ jobs:
         run: |
           cd ../master-baseline
           go test -coverprofile=coverage.out ./...
-          MASTER_COVERAGE=$(go tool cover -func=coverage.out | grep total: | awk '{print $3}' | tr -d '%')
+          MASTER_COVERAGE=$(go tool cover -func=coverage.out | awk '/^total:/ {print $3}' | tr -d '%')
           echo "master_coverage=$MASTER_COVERAGE" >> "$GITHUB_OUTPUT"
           echo "Master total coverage: ${MASTER_COVERAGE}%"
 
