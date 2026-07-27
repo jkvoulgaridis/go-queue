@@ -44,11 +44,7 @@ func GetTaskQueue() *TaskQueue {
 }
 
 func (r *TaskQueue) addTaskEnvelope(task TaskQueueItem) messages.TaskEnvelope {
-	eid, err := uuid.NewV7()
-	if err != nil {
-		log.Printf("failed generating task id: %v", err)
-		panic(err)
-	}
+	eid := uuid.Must(uuid.NewV7())
 	enveloped := messages.TaskEnvelope{
 		Type: "assign",
 		Eid:  eid.String(),
