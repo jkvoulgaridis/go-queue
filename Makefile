@@ -6,3 +6,12 @@ submit-to-cluster:
 
 get-metrics:
 	curl localhost:8090/metrics
+
+test:
+	go test -cover ./...
+
+test-cov-out:
+	go test -coverprofile=coverage.out ./...     
+
+total-coverage:
+	go tool cover -func=coverage.out | grep total: | awk '{print $3}'
