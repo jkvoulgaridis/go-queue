@@ -44,11 +44,3 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.22'
-
-      - name: Index on pkg.go.dev
-        run: |
-          MODULE_PATH=$(go list -m)
-          TAG="${{ steps.version.outputs.tag_name }}"
-          
-          echo "Indexing ${MODULE_PATH}@${TAG} on pkg.go.dev..."
-          GOPROXY=https://proxy.golang.org go list -m "${MODULE_PATH}@${TAG}"
