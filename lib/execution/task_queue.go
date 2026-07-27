@@ -93,8 +93,10 @@ func (r *TaskQueue) List(n int) []messages.TaskEnvelope {
 	if n > len(r.queued) {
 		n = len(r.queued)
 	}
+	r.q_lock.Lock()
 	items := r.queued[:n]
 	r.queued = r.queued[n:]
+	r.q_lock.Unlock()
 	return items
 }
 
@@ -127,4 +129,19 @@ func (r *TaskQueue) RemoveFromInFlight(eid uuid.UUID, isFailed bool) {
 		r.failedTasks = append(r.failedTasks, eid)
 		r.f_lock.Unlock()
 	}
+}
+
+func (r *TaskQueue) Purge() {
+	r.q_lock.Lock()
+	r.queued = []messages.TaskEnvelope{}
+	r.q_lock.Unlock()
+
+	r.f_lock.Lock()
+	r.failedTasks = make([]uuid.UUID, 0)
+	r.f_lock.Unlock()
+
+	r.i_lock.Lock()
+	r.inFlight = make([]uuid.UUID, 0)
+	r.i_lock.Unlock()
+
 }

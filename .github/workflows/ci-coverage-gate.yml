@@ -1,0 +1,66 @@
+name: CI Build, Test & Coverage Gate
+
+on:
+  pull_request:
+    branches: ["master"]
+
+permissions:
+  contents: read
+
+jobs:
+  build-test-coverage:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build project
+        run: make build-example
+
+      - name: Run tests with coverage profile
+        run: make test-cov-out
+
+      - name: Get PR total coverage
+        id: pr_cov
+        run: |
+          PR_COVERAGE=$(make total-coverage | tr -d '%')
+          echo "pr_coverage=$PR_COVERAGE" >> "$GITHUB_OUTPUT"
+          echo "PR total coverage: ${PR_COVERAGE}%"
+
+      - name: Checkout master for baseline
+        run: |
+          git fetch origin master --depth=1
+          git worktree add ../master-baseline origin/master
+
+      - name: Get master total coverage
+        id: master_cov
+        run: |
+          cd ../master-baseline
+          go test -coverprofile=coverage.out ./...
+          MASTER_COVERAGE=$(go tool cover -func=coverage.out | grep total: | awk '{print $3}' | tr -d '%')
+          echo "master_coverage=$MASTER_COVERAGE" >> "$GITHUB_OUTPUT"
+          echo "Master total coverage: ${MASTER_COVERAGE}%"
+
+      - name: Enforce coverage gate
+        run: |
+          PR_COV='${{ steps.pr_cov.outputs.pr_coverage }}'
+          MASTER_COV='${{ steps.master_cov.outputs.master_coverage }}'
+
+          echo "PR coverage: ${PR_COV}%"
+          echo "Master coverage: ${MASTER_COV}%"
+
+          awk -v pr="$PR_COV" -v master="$MASTER_COV" 'BEGIN {
+            if (pr + 0 < master + 0) {
+              printf("Coverage gate failed: PR coverage (%.2f%%) is below master (%.2f%%).\\n", pr, master);
+              exit 1;
+            }
+            printf("Coverage gate passed: PR coverage (%.2f%%) >= master (%.2f%%).\\n", pr, master);
+          }'
