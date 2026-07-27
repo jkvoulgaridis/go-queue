@@ -1,0 +1,54 @@
+name: Create Manual Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. 1.2.0 or v1.2.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write  # Needed to create git tags and GitHub releases
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Normalize Version String
+        id: version
+        run: |
+          RAW_INPUT="${{ inputs.version }}"
+          # Strip leading 'v' if present to normalize, then add it back
+          CLEAN_VER="${RAW_INPUT#v}"
+          TAG_NAME="v${CLEAN_VER}"
+          
+          echo "tag_name=${TAG_NAME}" >> $GITHUB_OUTPUT
+          echo "Releasing version: ${TAG_NAME}"
+
+      - name: Create Git Tag and GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag_name }}
+          name: Release ${{ steps.version.outputs.tag_name }}
+          generate_release_notes: true  # Auto-generates release notes from merged PRs/commits
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Index on pkg.go.dev
+        run: |
+          MODULE_PATH=$(go list -m)
+          TAG="${{ steps.version.outputs.tag_name }}"
+          
+          echo "Indexing ${MODULE_PATH}@${TAG} on pkg.go.dev..."
+          GOPROXY=https://proxy.golang.org go list -m "${MODULE_PATH}@${TAG}"
