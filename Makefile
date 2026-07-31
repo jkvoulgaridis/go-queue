@@ -1,3 +1,5 @@
+TEST_PKGS := $(shell go list ./... | grep -v '/examples')
+
 build-example:
 	go build  -o ./bin ./examples/cmd/...
 
@@ -8,10 +10,10 @@ get-metrics:
 	curl localhost:8090/metrics
 
 test:
-	go test -cover ./...
+	go test -cover $(TEST_PKGS)
 
 test-cov-out:
-	go test -coverprofile=coverage.out ./...     
+	go test -coverprofile=coverage.out $(TEST_PKGS)
 	go tool cover -html=coverage.out
 
 total-coverage:
