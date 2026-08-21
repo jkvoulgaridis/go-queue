@@ -4,6 +4,8 @@
 
 `gqueue` is a lightweight distributed task queue library in Go.
 
+🔴 Disclaimer: This is a toy project to get my hands dirty on Golang. 
+
 It provides:
 - A **broker** that accepts tasks and serves them to workers
 - **Workers** that pull tasks and execute registered handlers
